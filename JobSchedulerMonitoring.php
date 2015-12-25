@@ -10,10 +10,10 @@ require(dirname(__FILE__) . '/phplib/PhpZabbixApi_Library/ZabbixApi.class.php');
 include ('lib/scheduler/JobSchedulerAPI.php');        // JobSchedulerAPIをphpで使用する為のライブラリー読み込み
 
 // 各種初期設定の実施
-$SCHEDULER_URL  = "http://bovm270.jp.corp.toyo-eng.com";
+$SCHEDULER_URL  = "http://jobsch_host_name";
 $SCHEDULER_PORT = "5555";
-$ZABBIX_SERVER  = "bovm250.jp.corp.toyo-eng.com";
-$ZABBIX_APIURL  = "http://bovm250.jp.corp.toyo-eng.com/zabbix/api_jsonrpc.php";
+$ZABBIX_SERVER  = "zabbix_host_name";
+$ZABBIX_APIURL  = "http://zabbix_host_name/zabbix/api_jsonrpc.php";
 $ZABBIX_SENDER  = "/usr/local/bin/zabbix_sender";
 $ZABBIX_USER    = "Admin";
 $ZABBIX_PASS    = "zabbix";
