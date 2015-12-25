@@ -1,1 +1,8 @@
 # JobMonitoring
+
+ZabbixによりJobSchedulerで実行されるジョブを監視するためのスクリプト
+
+Zabbixのexternalscriptsフォルダに配置し、run_js_monitor.shをExternal checkタイプの
+Itemを登録すれば監視する準備が完了。
+
+監視を開始するためには、Jobの名称に対応するItemをZabbix trapperタイプで登録する。
