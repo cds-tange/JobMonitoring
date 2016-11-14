@@ -11,10 +11,10 @@ include ('lib/scheduler/JobSchedulerAPI.php');        // JobSchedulerAPIをphp�
 
 // 各種初期設定の実施
 $SCHEDULER_URL  = "http://jobsch_host_name";
-$SCHEDULER_PORT = "5555";
+$SCHEDULER_PORT = "4444";
 $ZABBIX_SERVER  = "zabbix_host_name";
 $ZABBIX_APIURL  = "http://zabbix_host_name/zabbix/api_jsonrpc.php";
-$ZABBIX_SENDER  = "/usr/local/bin/zabbix_sender";
+$ZABBIX_SENDER  = "/usr/bin/zabbix_sender";
 $ZABBIX_USER    = "Admin";
 $ZABBIX_PASS    = "zabbix";
 $LOG_DIR        = "/var/log/zabbix/";
@@ -86,10 +86,30 @@ for($i=0;$i<count($jobList);$i++){
     }
     
     $lastId = $items[0]->lastvalue;
-    
+
     // zabbixへの登録が初回の場合はlastId（前回記録したJobSchedulerでJob毎に割り振られるid）がzabbixから取得出来ない為、
     // JobSchedulerの初期値である「1」を設定する
-    if($lastId < 2) $lastId = 1;
+    // ZabbixのAPI仕様が変更になり、item.getでlast valueを取得する場合、過去1日までで取得できるlast value
+    // に限定している（取得できない場合は、0 になる。）ため、値が取得できない場合は、history.get APIを利用し、
+    // last valueを正取得するように仕様変更。
+    if ($lastId < 2) {
+        $hist = $api->historyGet(array(
+            'output' => 'extend',
+            'history' => 3,
+            'itemids' => $items[0]->itemid,
+            'sortfield' => 'clock',
+            'sortorder' => "DESC",
+            'limit' => 1
+        ));
+        if ($hist == NULL) {
+            $lastId = 1;
+            $msg = $msg . "Job : " . $job . " cannot get history data.\n";
+        } else {
+            $lastId = $hist[0]->value;
+             $msg = $msg . "Job : " . $job . " can get last value from history data.\n";
+        }
+    }
+    $msg = $msg . "Job : " . $job . " lastId : " . $lastId . "\n";
 
     // Jobの実行履歴情報をJobSchedulerより取得する
     $histCmd = '<show_history job="' . $job . '" id="' . $lastId . '" next="' . $NEXT_JOBS . '" />';
@@ -129,10 +149,18 @@ for($i=0;$i<count($jobList);$i++){
         // ホストが一つに特定出来た場合はzabbixへ履歴情報を登録する
         if(count($host) == 1){
             // 以下、zabbix_senderでのjob実行履歴の登録
-            $msg = $msg . "[" . date( "Y/m/d (D) H:i:s", time() ) . "] " .      'echo -n -e "' . $host[0]->host . ' ' . $keyHeader . $KEY_ID . ' ' . $start_time . ' ' . $jobHist[$j]->get_id() . '" | ' . $ZABBIX_SENDER . ' -z ' . $ZABBIX_SERVER . ' -T -i -'  . "\n"; 
-            $msg = $msg . "[" . date( "Y/m/d (D) H:i:s", time() ) . "] " . exec('echo -n -e "' . $host[0]->host . ' ' . $keyHeader . $KEY_ID . ' ' . $start_time . ' ' . $jobHist[$j]->get_id() . '" | ' . $ZABBIX_SENDER . ' -z ' . $ZABBIX_SERVER . ' -T -i -') . "\n"; 
-            $msg = $msg . "[" . date( "Y/m/d (D) H:i:s", time() ) . "] " .      'echo -n -e "' . $host[0]->host . ' ' . $keyHeader . $KEY_ELAPSE . ' ' . $start_time . ' ' . $elapse . '" | ' . $ZABBIX_SENDER . ' -z ' . $ZABBIX_SERVER . ' -T -i -'  . "\n"; 
-            $msg = $msg . "[" . date( "Y/m/d (D) H:i:s", time() ) . "] " . exec('echo -n -e "' . $host[0]->host . ' ' . $keyHeader . $KEY_ELAPSE . ' ' . $start_time . ' ' . $elapse . '" | ' . $ZABBIX_SENDER . ' -z ' . $ZABBIX_SERVER . ' -T -i -') . "\n"; 
+            $msg = $msg . "[" . date( "Y/m/d (D) H:i:s", time() ) . "] " .
+                   'echo -n -e "' . $host[0]->host . ' ' . $keyHeader . $KEY_ID . ' ' . $start_time .
+                   ' ' . $jobHist[$j]->get_id() . '" | ' . $ZABBIX_SENDER . ' -z ' . $ZABBIX_SERVER . ' -T -i -'  . "\n";
+            $msg = $msg . "[" . date( "Y/m/d (D) H:i:s", time() ) . "] " .
+                   exec('echo -n -e "' . $host[0]->host . ' ' . $keyHeader . $KEY_ID . ' ' . $start_time .
+                   ' ' . $jobHist[$j]->get_id() . '" | ' . $ZABBIX_SENDER . ' -z ' . $ZABBIX_SERVER . ' -T -i -') . "\n";
+            $msg = $msg . "[" . date( "Y/m/d (D) H:i:s", time() ) . "] " .
+                   'echo -n -e "' . $host[0]->host . ' ' . $keyHeader . $KEY_ELAPSE . ' ' . $start_time .
+                   ' ' . $elapse . '" | ' . $ZABBIX_SENDER . ' -z ' . $ZABBIX_SERVER . ' -T -i -'  . "\n"; 
+            $msg = $msg . "[" . date( "Y/m/d (D) H:i:s", time() ) . "] " .
+                   exec('echo -n -e "' . $host[0]->host . ' ' . $keyHeader . $KEY_ELAPSE . ' ' . $start_time .
+                   ' ' . $elapse . '" | ' . $ZABBIX_SENDER . ' -z ' . $ZABBIX_SERVER . ' -T -i -') . "\n";
         }
     }
 }
